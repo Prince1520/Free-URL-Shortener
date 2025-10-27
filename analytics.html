@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>URL Analytics</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { background:#0f1724; color:#fff; font-family:Inter, sans-serif; margin:0; padding:20px; text-align:center; }
+    .card { max-width:900px; margin:auto; background:rgba(255,255,255,0.05); border-radius:14px; padding:20px; }
+    h1 { margin-top:0; }
+    canvas { margin-top:20px; }
+    .stats { display:flex; gap:16px; justify-content:center; margin-top:12px; flex-wrap:wrap; }
+    .stat { background:rgba(255,255,255,0.1); border-radius:8px; padding:12px 18px; }
+    a { color:#60a5fa; text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    button { margin-top:20px; background:#7c3aed; border:none; color:white; padding:10px 18px; border-radius:8px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>📊 URL Analytics Dashboard</h1>
+    <p id="shortLink"></p>
+
+    <div class="stats">
+      <div class="stat"><strong>Total Clicks:</strong> <span id="totalClicks">—</span></div>
+      <div class="stat"><strong>Short ID:</strong> <span id="shortId">—</span></div>
+      <div class="stat"><strong>Created At:</strong> <span id="createdAt">—</span></div>
+    </div>
+
+    <canvas id="chart" width="600" height="300"></canvas>
+
+    <button onclick="history.back()">← Back</button>
+  </div>
+
+  <script>
+    const BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+      ? 'http://localhost:8001'
+      : '';
+
+    async function loadAnalytics() {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get("id");
+      if (!id) {
+        document.body.innerHTML = "<h2>No short ID found in URL</h2>";
+        return;
+      }
+
+      try {
+        const res = await fetch(`${BASE}/url/analytics/${id}`);
+        const data = await res.json();
+
+        document.getElementById("shortLink").innerHTML =
+          `Short link: <a href="${BASE}/url/${id}" target="_blank">${BASE}/url/${id}</a>`;
+
+        document.getElementById("totalClicks").textContent = data.totalClicks;
+        document.getElementById("shortId").textContent = id;
+        document.getElementById("createdAt").textContent = new Date(data.analytics[0]?.timestamp || Date.now()).toLocaleString();
+
+        const grouped = groupByDate(data.analytics);
+        drawChart(grouped.labels, grouped.counts);
+
+      } catch (err) {
+        document.body.innerHTML = `<h2 style='color:red;'>Error: ${err.message}</h2>`;
+      }
+    }
+
+    function groupByDate(records) {
+      const map = {};
+      records.forEach(r => {
+        const d = new Date(r.timestamp).toLocaleDateString();
+        map[d] = (map[d] || 0) + 1;
+      });
+      return { labels: Object.keys(map), counts: Object.values(map) };
+    }
+
+    function drawChart(labels, counts) {
+      const ctx = document.getElementById("chart");
+      new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            label: "Clicks per Day",
+            data: counts,
+            backgroundColor: "rgba(124,58,237,0.6)",
+            borderColor: "#7c3aed",
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: true, ticks: { color: "#cbd5e1" } },
+            x: { ticks: { color: "#cbd5e1" } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    loadAnalytics();
+  </script>
+</body>
+</html>

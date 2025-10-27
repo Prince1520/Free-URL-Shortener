@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Free Short URL Generator</title>
+
+  <!-- ✅ QR Code Library -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #d682d1, #e8b6e8);
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 15px;
+    }
+
+    input {
+      width: 90%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      outline: none;
+      margin-bottom: 15px;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      color: white;
+      background-color: #4a90e2;
+      transition: all 0.2s ease-in-out;
+      margin: 5px;
+    }
+
+    button:hover {
+      background-color: #357ab8;
+    }
+
+    .short-url {
+      margin-top: 15px;
+      color: #444;
+      font-size: 14px;
+      word-break: break-all;
+    }
+
+    canvas {
+      margin-top: 15px;
+      display: none;
+    }
+
+    #downloadQR {
+      display: none;
+      margin-top: 10px;
+      text-decoration: none;
+      color: #0077ff;
+      font-weight: 500;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Free Short URL Generator 🔗 </h1>
+
+    <input id="urlInput" type="text" placeholder="Enter your long URL here" />
+    <br />
+    <button id="generateBtn">Generate</button>
+
+    <div class="short-url" id="shortUrlDisplay"></div>
+
+    <div class="actions">
+      <button id="copyBtn">Copy</button>
+      <button id="openBtn">Open</button>
+      <button id="analyticsBtn">Analytics</button>
+      <button id="qrBtn">Generate QR</button>
+    </div>
+
+    <!-- QR Display + Download -->
+    <canvas id="qrCanvas"></canvas>
+    <a id="downloadQR" href="#" download="short-url-qr.png">Download QR Code</a>
+  </div>
+
+  <script>
+    const generateBtn = document.getElementById('generateBtn');
+    const urlInput = document.getElementById('urlInput');
+    const shortUrlDisplay = document.getElementById('shortUrlDisplay');
+    const copyBtn = document.getElementById('copyBtn');
+    const openBtn = document.getElementById('openBtn');
+    const analyticsBtn = document.getElementById('analyticsBtn');
+    const qrBtn = document.getElementById('qrBtn');
+    const qrCanvas = document.getElementById('qrCanvas');
+    const downloadQR = document.getElementById('downloadQR');
+
+    let currentShortUrl = "";
+    let currentId = "";
+
+    // ✅ Generate Short URL
+    generateBtn.addEventListener('click', async () => {
+      const longUrl = urlInput.value.trim();
+      if (!longUrl) return alert("Please enter a URL first!");
+
+      try {
+        const response = await fetch('/url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: longUrl })
+        });
+
+        const data = await response.json();
+        if (data.error) return alert(data.error);
+
+        currentId = data.id;
+        currentShortUrl = `${window.location.origin}/url/${data.id}`;
+
+        shortUrlDisplay.innerHTML = `<strong>Short URL:</strong> <a href="${currentShortUrl}" target="_blank">${currentShortUrl}</a>`;
+      } catch (err) {
+        console.error(err);
+        alert("Something went wrong while generating short URL");
+      }
+    });
+
+    // ✅ Copy URL
+    copyBtn.addEventListener('click', async () => {
+      if (!currentShortUrl) return;
+      await navigator.clipboard.writeText(currentShortUrl);
+      copyBtn.textContent = "Copied!";
+      setTimeout(() => copyBtn.textContent = "Copy", 1500);
+    });
+
+    // ✅ Open Short URL
+    openBtn.addEventListener('click', () => {
+      if (!currentShortUrl) return;
+      window.open(currentShortUrl, "_blank");
+    });
+
+    // ✅ Analytics Page
+    analyticsBtn.addEventListener('click', () => {
+      if (!currentId) return;
+      window.open(`/analytics.html?id=${currentId}`, "_blank");
+    });
+
+    // ✅ Generate QR Code
+    qrBtn.addEventListener('click', () => {
+      if (!currentShortUrl) return alert("Generate a short URL first!");
+
+      qrCanvas.style.display = 'block';
+      QRCode.toCanvas(qrCanvas, currentShortUrl, {
+        width: 180,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      }, (error) => {
+        if (error) console.error(error);
+        else console.log('QR Code generated!');
+      });
+
+      // Create downloadable QR code
+      setTimeout(() => {
+        const qrDataUrl = qrCanvas.toDataURL('image/png');
+        downloadQR.href = qrDataUrl;
+        downloadQR.download = `short-url-${currentId}.png`;
+        downloadQR.style.display = 'inline-block';
+      }, 300);
+    });
+  </script>
+</body>
+</html>
